@@ -1,0 +1,263 @@
+= Week_01
+:icons: font
+:source-highlighter: highlightjs
+:highlightjs-theme: idea
+:hardbreaks:
+:sectlinks:
+:sectnums:
+:stem:
+
+== JVM指令
+
+[source,java]
+.Hello.java
+----
+public class Hello {
+
+    public static void main(String[] args) {
+        int result = 1;
+        for (int i = 0; i < 100; i++) {
+            result = result * 10 + i;
+            if (result > 100) {
+                break;
+            }
+        }
+    }
+}
+----
+
+[source]
+.Hello.class
+----
+Compiled from "Hello.java"
+public class io.github.jjyy.Hello {
+  public io.github.jjyy.Hello();
+    Code:
+       0: aload_0
+       1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+       4: return
+
+  public static void main(java.lang.String[]);
+    Code:
+       0: iconst_1            <1>
+       1: istore_1            <2>
+       2: iconst_0            <3>
+       3: istore_2            <4>
+       4: iload_2             <5>
+       5: bipush        100   <6>
+       7: if_icmpge     32    <7>
+      10: iload_1             <8>
+      11: bipush        10    <9>
+      13: imul                <10>
+      14: iload_2             <11>
+      15: iadd                <12>
+      16: istore_1            <13>
+      17: iload_1             <14>
+      18: bipush        100   <15>
+      20: if_icmple     26    <16>
+      23: goto          32    <17>
+      26: iinc          2, 1  <18>
+      29: goto          4     <19>
+      32: return              <20>
+}
+----
+<1> 将常量1压入到操作数栈.
+<2> 弹出操作数栈顶元素, 将操作数栈中的常量1存储到局部变量表位置1.
+<3> 将常量0压入到操作数栈.
+<4> 弹出操作数栈顶元素, 将操作数栈中的常量0存储到局部变量表位置2.
+<5> 加载局部变量表位置2的局部变量(即i)到操作数栈.
+<6> 将常量100压入到操作数栈.
+<7> 如果操作数栈顶的值大于等于100, 则跳转到32行, 即方法return出去.
+<8> 加载局部变量表位置1的局部变量(即result)到操作数栈.
+<9> 将常量10压入到操作数栈.
+<10> 将栈顶两个值弹出操作数栈, 相乘(即i*10), 再将结果压入到操作数栈.
+<11> 加载局部变量表位置2的局部变量(即i)到操作数栈.
+<12> 将栈顶两个值弹出操作数栈, 相加, 再将结果压入到操作数栈.
+<13> 弹出操作数栈顶元素(即result), 存储到局部变量表位置1.
+<14> 加载局部变量表位置1的局部变量(即result)到操作数栈.
+<15> 将常量100压入到操作数栈.
+<16> 如果操作数栈顶的值小于等于100, 则跳转到26行.
+<17> 跳转到32行, 即方法return出去.
+<18> 将局部变量表位置2的值(即i)加1.
+<19> 跳转到第四行, 继续for循环.
+<20> 方法返回出去.
+
+== 自定义ClassLoader
+
+[source,java]
+.HelloClassLoader.java
+----
+public class HelloClassLoader {
+
+    public static void main(String[] args) {
+        XClassLoader xClassLoader = new XClassLoader();
+        try {
+            Class<?> helloClass = Class.forName("Hello", true, xClassLoader);
+            Object hello = helloClass.getDeclaredConstructor().newInstance();
+            helloClass.getMethod("hello").invoke(hello);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static class XClassLoader extends ClassLoader {
+
+        @Override
+        protected Class<?> findClass(String name) {
+            byte[] bytes = readFile(name);
+            return defineClass(name, bytes, 0, bytes.length);
+        }
+
+        private byte[] readFile(String name) {
+            try {
+                URL xlassFile = getClass().getClassLoader().getResource(name + ".xlass");
+                if (xlassFile == null) {
+                    throw new RuntimeException(name);
+                }
+                byte[] file = Files.readAllBytes(Paths.get(xlassFile.toURI()));
+                byte[] bytes = new byte[file.length];
+                for (int i = 0; i < file.length; i++) {
+                    bytes[i] = (byte) (255 - file[i]);
+                }
+                return bytes;
+            } catch (Exception e) {
+                throw new RuntimeException(name);
+            }
+        }
+    }
+}
+----
+
+== JVM启动参数与内存区域关系示意图
+
+> 画一张图，展示 Xmx、Xms、Xmn、Meta、DirectMemory、Xss 这些内存参数的关系。
+
+image::http://processon.com/chart_image/5f8fada163768906e67e704d.png[]
+
+* -Xmx: 堆内存最大值.
+* -Xms: 堆内存初始值.
+* -Xmn: 新生代内存最大值.
+* -Xss: 虚拟机栈内存大小.
+* -XX:MetaspaceSize: Metaspace内存初始值.
+* -XX:MaxMetaspaceSize: Metaspace内存最大值.
+* -XX:MaxDirectMemorySize: 直接内存最大值, 默认与Xmx相同.
+
+== 分析业务系统JVM参数配置
+
+机器配置: 4核8G.
+
+[source,shell script]
+----
+jps -mlv <1>
+6 /app.jar -Xloggc:/data/logs/***/gc-%t.log -XX:+PrintCommandLineFlags -XX:AutoBoxCacheMax=20000 -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Djava.security.egd=file:/dev/./urandom
+24250 sun.tools.jps.Jps -mlv -Dapplication.home=/usr/lib/jvm/java-1.8-openjdk -Xms8m
+
+jcmd 6 VM.version <2>
+6:
+OpenJDK 64-Bit Server VM version 25.212-b04
+JDK 8.0_212
+
+jcmd 6 VM.flags <3>
+6:
+-XX:AutoBoxCacheMax=20000 -XX:CICompilerCount=3 -XX:InitialHeapSize=130023424 -XX:MaxHeapSize=2051014656 -XX:MaxNewSize=683671552 -XX:MinHeapDeltaBytes=524288 -XX:NewSize=4299161
+6 -XX:OldSize=87031808 -XX:+PrintCommandLineFlags -XX:+PrintGC -XX:+PrintGCDateStamps -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+UseCompressedClassPointers -XX:+UseCompresse
+dOops -XX:+UseParallelGC
+
+jcmd 6 GC.heap_info <4>
+6:
+ PSYoungGen      total 445440K, used 213413K [0x00000000d7400000, 0x0000000100000000, 0x0000000100000000)
+  eden space 223232K, 95% used [0x00000000d7400000,0x00000000e4469520,0x00000000e4e00000)
+  from space 222208K, 0% used [0x00000000f2700000,0x00000000f2700000,0x0000000100000000)
+  to   space 222208K, 0% used [0x00000000e4e00000,0x00000000e4e00000,0x00000000f2700000)
+ ParOldGen       total 1335296K, used 1335116K [0x0000000085c00000, 0x00000000d7400000, 0x00000000d7400000)
+  object space 1335296K, 99% used [0x0000000085c00000,0x00000000d73d3368,0x00000000d7400000)
+ Metaspace       used 114456K, capacity 124750K, committed 124928K, reserved 1159168K
+  class space    used 13203K, capacity 14730K, committed 14848K, reserved 1048576K
+
+
+jcmd 6 GC.class_histogram | head -n 30 <5>
+6:
+
+ num     #instances         #bytes  class name
+----------------------------------------------
+   1:      11094982      485496624  [C
+   2:      11195712      268697088  java.lang.String
+   3:      13179623      210873968  java.lang.Integer
+   4:       1125686      153991992  [Ljava.lang.Object;
+   5:       4496933      143901856  java.util.HashMap$Node
+   6:        758657       70440352  [Ljava.util.HashMap$Node;
+   7:        896580       43035840  java.util.HashMap
+   8:       1327386       31857264  java.util.ArrayList
+   9:       1291159       30987816  com.alibaba.fastjson.JSONArray
+  10:        886282       14180512  com.alibaba.fastjson.JSONObject
+  11:        551342       13232208  java.lang.Long
+  12:         13303       12326144  [B
+  13:         72601        9873736  ai.yiye.agent.domain.marketing.data.AdvertiserGroup
+  14:        338909        8133816  java.time.Instant
+  15:        455504        7288064  java.util.HashMap$EntrySet
+  16:         67726        5959888  java.lang.reflect.Method
+  17:        148511        4752352  java.util.concurrent.ConcurrentHashMap$Node
+  18:         21623        2397312  java.lang.Class
+  19:         12995        2173800  [I
+  20:           385        1938024  [J
+  21:         46172        1846880  java.util.LinkedHashMap$Entry
+  22:         72589        1822704  [Ljava.lang.Integer;
+  23:         34816        1671168  org.aspectj.weaver.reflect.ShadowMatchImpl
+  24:         18700        1645600  ai.yiye.agent.domain.marketing.data.Advertise
+  25:           818        1540144  [Ljava.util.concurrent.ConcurrentHashMap$Node;
+  26:         20647        1156232  java.util.LinkedHashMap
+
+jstat -gcutil 6 1000 <6>
+  S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT     GCT
+  0.00   0.00 100.00  99.96  91.58  88.96    543   28.914  1072 3033.979 3062.893
+  0.00   0.00 100.00  99.98  91.59  89.00    543   28.914  1073 3037.889 3066.803
+  0.00   0.00 100.00 100.00  91.59  89.00    543   28.914  1075 3044.130 3073.044
+  0.00   0.00 100.00  99.99  91.59  88.99    543   28.914  1076 3046.888 3075.802
+  0.00   0.00 100.00  99.98  91.59  88.99    543   28.914  1078 3052.410 3081.324
+  0.00   0.00 100.00  99.97  91.59  88.99    543   28.914  1080 3057.947 3086.861
+  0.00   0.00 100.00  99.97  91.59  88.99    543   28.914  1082 3063.668 3092.582
+  0.00   0.00  85.26 100.00  91.59  88.99    543   28.914  1083 3069.371 3098.285
+  0.00   0.00 100.00  99.99  91.59  88.99    543   28.914  1085 3072.131 3101.045
+  0.00   0.00 100.00  99.96  91.59  88.99    543   28.914  1087 3078.710 3107.624
+  0.00   0.00 100.00  99.96  91.59  88.99    543   28.914  1088 3081.444 3110.357
+  0.00   0.00 100.00 100.00  91.59  88.99    543   28.914  1090 3088.667 3117.581
+----
+<1> 查看JVM进程
+<2> 查看JVM版本: 使用的是Java8.
+<3> 查看JVM启动参数: 使用的是Java8默认的ParallelGC, 堆内存最大2G, 其中Young区最大652MB.
+<4> 查看内存使用情况: Young区已使用208MB/435MB, Old区已使用1303MB/1304MB.
+<5> 查看对象内存占用直方图.
+<6> 查看gc概况.
+
+观察得到: 机器有8G物理内存, 而堆内存默认只用到2G内存, 其中Eden区和Old区全部满载, Full GC也回收不了Old区内存, GC花费总时间也接近1小时(服务启动了总共才1.5小时🤣).
+使用gceasy分析GC日志后计算出来吞吐量只有37.748%.
+
+尝试增加启动参数: `-Xms6g -Xmx6g -XX:MetaspaceSize=256m -XX:MaxMetaspaceSize=512m`
+再使用 `jstat -gcutil 6 5000` :
+
+[source]
+----
+ S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT     GCT
+ 31.92   0.00  28.46  76.88  91.73  88.95     92    8.351     0    0.000    8.351
+ 31.92   0.00  72.71  76.88  91.73  88.95     92    8.351     0    0.000    8.351
+  0.00  98.66  15.89  77.09  91.73  88.95     93    8.382     0    0.000    8.382
+  0.00  98.66  58.61  77.09  91.73  88.95     93    8.382     0    0.000    8.382
+ 46.51   0.00   5.87  77.22  91.73  88.95     94    8.447     0    0.000    8.447
+ 46.51   0.00  40.34  77.22  91.73  88.95     94    8.447     0    0.000    8.447
+ 46.51   0.00  63.02  77.22  91.73  88.95     94    8.447     0    0.000    8.447
+ 46.51   0.00  81.49  77.22  91.73  88.95     94    8.447     0    0.000    8.447
+  0.00  33.53   1.62  78.51  91.74  88.96     95    8.548     0    0.000    8.548
+  0.00  33.53  25.65  78.51  91.74  88.96     95    8.548     0    0.000    8.548
+  0.00  33.53  64.66  78.51  91.74  88.96     95    8.548     0    0.000    8.548
+  0.00  33.53  96.26  78.51  91.74  88.96     95    8.548     0    0.000    8.548
+ 23.78   0.00  15.91  79.09  91.74  88.96     96    8.604     0    0.000    8.604
+ 23.78   0.00  35.35  79.09  91.74  88.96     96    8.604     0    0.000    8.604
+ 23.78   0.00  65.62  79.09  91.74  88.96     96    8.604     0    0.000    8.604
+ 23.78   0.00  95.70  79.09  91.74  88.96     96    8.604     0    0.000    8.604
+  0.00  32.77  31.42  79.28  91.74  88.96     97    8.647     0    0.000    8.647
+  0.00  32.77  63.33  79.28  91.74  88.96     97    8.647     0    0.000    8.647
+  0.00  32.77  95.64  79.28  91.74  88.96     97    8.647     0    0.000    8.647
+ 26.32   0.00  37.92  79.85  91.74  88.96     98    8.704     0    0.000    8.704
+----
+
+Full GC一次也没触发, 每次Young GC回收完Eden区都会降低使用率. 使用gceasy分析GC日志后计算出来吞吐量上升到99.264%.✌️
