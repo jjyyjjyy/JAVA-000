@@ -12,6 +12,7 @@
     <modules>
         <module>Week_01</module>
         <module>Week_02</module>
+        <module>Week_03</module>
     </modules>
 
     <properties>
@@ -26,6 +27,9 @@
         <junit.version>5.7.0</junit.version>
         <lombok.version>1.18.16</lombok.version>
         <okhttp.version>4.7.2</okhttp.version>
+        <slf4j.version>1.7.30</slf4j.version>
+        <logback.version>1.2.3</logback.version>
+        <netty.version>4.1.53.Final</netty.version>
 
     </properties>
 
@@ -42,6 +46,21 @@
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>okhttp</artifactId>
                 <version>${okhttp.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-all</artifactId>
+                <version>${netty.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
