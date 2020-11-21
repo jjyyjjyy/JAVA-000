@@ -1,0 +1,114 @@
+= Week_05
+:icons: font
+:source-highlighter: highlightjs
+:highlightjs-theme: idea
+:hardbreaks:
+:sectlinks:
+:sectnums:
+:stem:
+
+== 周四作业1 Aop例子
+
+[source,java]
+.DemoService.java
+----
+public interface DemoService {
+
+    void handle(String param);
+}
+----
+
+[source,java]
+.DemoServiceProxy.java
+----
+public class DemoServiceProxy implements InvocationHandler {
+
+    private final DemoService demoService;
+
+    public DemoServiceProxy(DemoService demoService) {
+        this.demoService = demoService;
+    }
+
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        System.out.println("Before Invoke: " + Arrays.toString(args));
+        Object result = method.invoke(demoService, args);
+        System.out.println("After Invoke");
+        return result;
+    }
+}
+----
+
+[source,java]
+.AopMain.java
+----
+public class AopMain {
+
+    public static void main(String[] args) {
+        DemoService demoService = (DemoService) Proxy.newProxyInstance(DemoService.class.getClassLoader(), new Class[]{DemoService.class}, new DemoServiceProxy(System.out::println));
+        demoService.handle("Demo AOP");
+    }
+}
+----
+
+== 周四作业2 SpringBean装配
+
+=== Component注解
+
+[source,java]
+----
+@Component
+public class DemoBean {
+}
+----
+
+=== 手动注册
+
+[source,java]
+----
+@Configuration
+public class BeanRegister {
+
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(BeanRegister.class);
+        applicationContext.register(DemoBean.class);
+    }
+}
+----
+
+== 周六作业4 自动配置
+
+[source,properties]
+./META-INF/spring.factories
+----
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=io.github.jjyy.autoconfigure.DemoAutoConfiguration
+----
+
+[source,java]
+.Student.java
+----
+@Data
+public class Student {
+
+    private Long id;
+
+    private String name;
+}
+
+----
+
+[source,java]
+.DemoAutoConfiguration.java
+----
+@Configuration
+@ConditionalOnClass(Student.class)
+public class DemoAutoConfiguration {
+
+    @Bean
+    public Student student() {
+        return new Student().setId(1L).setName("Demo");
+    }
+}
+----
+
+
