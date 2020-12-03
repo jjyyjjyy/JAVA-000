@@ -1,0 +1,221 @@
+= Week_07
+:icons: font
+:source-highlighter: highlightjs
+:highlightjs-theme: idea
+:hardbreaks:
+:sectlinks:
+:sectnums:
+:stem:
+
+== 周四作业2 测试不同方式的插入效率
+
+[source,java]
+.单条/批量插入
+----
+@SpringBootApplication
+public class Week07Application {
+
+    private static final int COUNT = 1_000_000;
+
+    public static void main(String[] args) {
+        SpringApplication.run(Week07Application.class, args);
+    }
+
+    @Bean
+    public ApplicationRunner runner(OrderMapper orderMapper) {
+        return args -> {
+            List<Order> noob = generateOrders(COUNT);
+            List<List<Order>> elite = Lists.partition(generateOrders(COUNT), 500);
+
+            orderMapper.delete(null);
+            StopWatch watch = new StopWatch();
+            watch.start("单条插入");
+            noob.parallelStream().forEach(orderMapper::insert);
+            watch.stop();
+            orderMapper.delete(null);
+
+            watch.start("批量插入");
+            elite.parallelStream().forEach(orderMapper::insertBatchSomeColumn);
+            watch.stop();
+
+            System.out.println(watch.prettyPrint());
+        };
+    }
+
+    private List<Order> generateOrders(int num) {
+        OrderStatus[] orderStatuses = OrderStatus.class.getEnumConstants();
+        PaymentMethod[] paymentMethods = PaymentMethod.class.getEnumConstants();
+        DeliveryType[] deliveryTypes = DeliveryType.class.getEnumConstants();
+        return IntStream
+            .rangeClosed(1, num)
+            .parallel()
+            .mapToObj(i -> new Order()
+                .setUserId(1L)
+                .setPaymentMethod(paymentMethods[i % paymentMethods.length])
+                .setDeliveryType(deliveryTypes[i % deliveryTypes.length])
+                .setPaymentNo(IdWorker.getId())
+                .setDeliveryNo(IdWorker.getId())
+                .setStatus(orderStatuses[i % orderStatuses.length]))
+            .collect(Collectors.toList());
+    }
+}
+----
+
+[source,postgresql]
+.DDL插入
+----
+with tmp as (
+    select generate_series(1, 1000000) n
+)
+insert
+into t_order(user_id, payment_no, payment_method, delivery_no, delivery_type, status, created_at, updated_at)
+select 1,
+       n,
+       1,
+       n,
+       1,
+       1,
+       now(),
+       now()
+from tmp;
+----
+
+|===
+| 单条插入 | 批量插入 | DDL插入
+
+| 847秒
+| 80秒
+| 24秒
+|===
+
+== 周六作业2 动态切换数据源
+
+=== 定义注解
+
+[source,java]
+.DataSourceRoute.java
+----
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited
+@Documented
+public @interface DataSourceRoute {
+
+    String value();
+}
+----
+
+=== 数据源Holder
+
+[source,java]
+.DataSourceHolder.java
+----
+public class DataSourceHolder {
+
+    private static final ThreadLocal<String> DATA_SOURCE = new InheritableThreadLocal<>();
+
+    public static void set(String id) {
+        DATA_SOURCE.set(id);
+    }
+
+    public static void clear() {
+        DATA_SOURCE.remove();
+    }
+
+    public static String get() {
+        return DATA_SOURCE.get();
+    }
+}
+----
+
+=== 数据源key切面
+
+[source,java]
+.DataSourceRouteAspect.java
+----
+@Aspect
+public class DataSourceRouteAspect {
+
+    @Pointcut("@annotation(io.github.jjyy.routing.DataSourceRoute)")
+    public void dataSourceRoute() {
+    }
+
+    @Around("dataSourceRoute()")
+    public Object setupDataSourceRoute(ProceedingJoinPoint joinPoint) throws Throwable {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        DataSourceRoute route = signature.getMethod().getAnnotation(DataSourceRoute.class);
+        if (route != null) {
+            // 设置当前线程的数据源
+            DataSourceHolder.set(route.value());
+        }
+        try {
+            return joinPoint.proceed(joinPoint.getArgs());
+        } finally {
+            DataSourceHolder.clear();
+        }
+
+    }
+}
+----
+
+=== 数据源配置
+
+[source,java]
+.DataSourceConfiguration.java
+----
+@Configuration
+@Profile("manual")
+public class DataSourceConfiguration {
+
+    @Bean
+    public DataSource dataSource() {
+
+        HikariDataSource master = new HikariDataSource();
+        master.setUsername("jy");
+        master.setPassword("123456");
+        master.setJdbcUrl("jdbc:postgresql://localhost:5432/geekbang");
+
+        HikariDataSource slave = new HikariDataSource();
+        slave.setUsername("jy");
+        slave.setPassword("123456");
+        slave.setJdbcUrl("jdbc:postgresql://localhost:5433/geekbang");
+
+        return new DataSourceRouter(master, Map.of("master", master, "slave", slave));
+    }
+
+    @Bean
+    public DataSourceRouteAspect dataSourceRouteAspect() {
+        return new DataSourceRouteAspect();
+    }
+}
+----
+
+== 周六作业3 sharding-jdbc自动切换数据源
+
+[source,yaml]
+.application-sharding.yml
+----
+spring:
+  shardingsphere:
+    datasource:
+      names: master,slave
+      master:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: org.postgresql.Driver
+        jdbc-url: jdbc:postgresql://localhost:5432/geekbang
+        username: jy
+        password: 123456
+      slave:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: org.postgresql.Driver
+        jdbc-url: jdbc:postgresql://localhost:5432/geekbang
+        username: jy
+        password: 123456
+    masterslave:
+      name: ms
+      master-data-source-name: master
+      slave-data-source-names:
+        - slave
+
+----
+

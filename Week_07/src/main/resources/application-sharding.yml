@@ -1,0 +1,21 @@
+spring:
+  shardingsphere:
+    datasource:
+      names: master,slave
+      master:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: org.postgresql.Driver
+        jdbc-url: jdbc:postgresql://localhost:5432/geekbang
+        username: jy
+        password: 123456
+      slave:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: org.postgresql.Driver
+        jdbc-url: jdbc:postgresql://localhost:5432/geekbang
+        username: jy
+        password: 123456
+    masterslave:
+      name: ms
+      master-data-source-name: master
+      slave-data-source-names:
+        - slave

@@ -83,25 +83,25 @@ comment on column product_category.creator_id is '分类创建用户id';
 [source,postgresql]
 .订单表
 ----
-create table order (
+create table t_order (
     id bigserial primary key,
     user_id bigint,
     payment_no bigint,
-    payment_method int,
+    payment_method int2,
     delivery_no bigint,
-    delivery_type int,
-    status int,
+    delivery_type int2,
+    status int2,
     created_at timestamp,
     updated_at timestamp
 );
-comment on table order is '订单表';
-comment on column order.user_id is '订单用户id';
-comment on column order.payment_no is '支付流水号';
-comment on column order.payment_method is '支付方式';
-comment on column order.delivery_no is '物流流水号';
-comment on column order.delivery_type is '物流类型';
-comment on column order.payment_method is '支付方式';
-comment on column order.status is '订单状态';
+comment on table t_order is '订单表';
+comment on column t_order.user_id is '订单用户id';
+comment on column t_order.payment_no is '支付流水号';
+comment on column t_order.payment_method is '支付方式';
+comment on column t_order.delivery_no is '物流流水号';
+comment on column t_order.delivery_type is '物流类型';
+comment on column t_order.payment_method is '支付方式';
+comment on column t_order.status is '订单状态';
 ----
 
 [source,postgresql]
