@@ -1,0 +1,45 @@
+dataSources:
+  geekbang_0: !!com.zaxxer.hikari.HikariDataSource
+    jdbcUrl: jdbc:postgresql://127.0.0.1:5432/geekbang_0
+    username: jy
+    password: 123456
+  geekbang_1: !!com.zaxxer.hikari.HikariDataSource
+    jdbcUrl: jdbc:postgresql://127.0.0.1:5432/geekbang_1
+    username: jy
+    password: 123456
+rules:
+  - !SHARDING
+    tables:
+      t_order:
+        actualDataNodes: geekbang_${0..1}.t_order_${0..15}
+        tableStrategy:
+          standard:
+            shardingColumn: id
+            shardingAlgorithmName: t_order_inline
+        keyGenerateStrategy:
+          column: id
+          keyGeneratorName: snowflake
+    bindingTables:
+      - t_order
+    defaultDatabaseStrategy:
+      standard:
+        shardingColumn: user_id
+        shardingAlgorithmName: database_inline
+    defaultTableStrategy:
+      none:
+
+    shardingAlgorithms:
+      database_inline:
+        type: INLINE
+        props:
+          algorithm-expression: geekbang_${user_id % 2}
+      t_order_inline:
+        type: INLINE
+        props:
+          algorithm-expression: t_order_${id % 16}
+
+    keyGenerators:
+      snowflake:
+        type: SNOWFLAKE
+        props:
+          worker-id: 123

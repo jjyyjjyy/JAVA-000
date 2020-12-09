@@ -1,0 +1,271 @@
+= Week_08
+:icons: font
+:source-highlighter: highlightjs
+:highlightjs-theme: idea
+:hardbreaks:
+:sectlinks:
+:sectnums:
+:stem:
+
+== 周四作业2 ShardingSphere-proxy分库分表
+
+=== ShardingSphere-proxy配置
+
+[source,yaml]
+.server.yaml
+----
+authentication:
+  users:
+    root:
+      password: 123456
+    jy:
+      password: 123456
+
+props:
+  max-connections-size-per-query: 1
+  acceptor-size: 16  # The default value is available processors count * 2.
+  executor-size: 16  # Infinite by default.
+  proxy-frontend-flush-threshold: 128  # The default value is 128.
+    # LOCAL: Proxy will run with LOCAL transaction.
+    # XA: Proxy will run with XA transaction.
+  # BASE: Proxy will run with B.A.S.E transaction.
+  proxy-transaction-type: LOCAL
+  proxy-opentracing-enabled: false
+  proxy-hint-enabled: false
+  query-with-cipher-column: true
+  sql-show: true
+  check-table-metadata-enabled: false
+----
+
+[source,yaml]
+.config-sharding.yaml
+----
+schemaName: geekbang
+dataSourceCommon:
+  username: jy
+  password: 123456
+  connectionTimeoutMilliseconds: 30000
+  idleTimeoutMilliseconds: 60000
+  maxLifetimeMilliseconds: 1800000
+  maxPoolSize: 50
+  minPoolSize: 1
+  maintenanceIntervalMilliseconds: 30000
+
+dataSources:
+  geekbang_0:
+    url: jdbc:postgresql://127.0.0.1:5432/geekbang_0
+  geekbang_1:
+    url: jdbc:postgresql://127.0.0.1:5432/geekbang_1
+
+rules:
+  - !SHARDING
+    tables:
+      t_order:
+        actualDataNodes: geekbang_${0..1}.t_order_${0..15}
+        tableStrategy:
+          standard:
+            shardingColumn: id
+            shardingAlgorithmName: t_order_inline
+        keyGenerateStrategy:
+          column: id
+          keyGeneratorName: snowflake
+    bindingTables:
+      - t_order
+    defaultDatabaseStrategy:
+      standard:
+        shardingColumn: user_id
+        shardingAlgorithmName: database_inline
+    defaultTableStrategy:
+      none:
+
+    shardingAlgorithms:
+      database_inline:
+        type: INLINE
+        props:
+          algorithm-expression: geekbang_${user_id % 2}
+      t_order_inline:
+        type: INLINE
+        props:
+          algorithm-expression: t_order_${id % 16}
+
+    keyGenerators:
+      snowflake:
+        type: SNOWFLAKE
+        props:
+          worker-id: 123
+
+----
+
+=== 数据库脚本
+
+[source,sql]
+----
+create table t_order (
+    id bigint primary key,
+    user_id bigint,
+    payment_no bigint,
+    payment_method int2,
+    delivery_no bigint,
+    delivery_type int2,
+    status int2,
+    created_at timestamp,
+    updated_at timestamp
+);
+----
+
+执行完可以看到 `geekbang_0/geekbang_1` 两个数据库下分别建了16张表
+
+=== 代码直连ShardingSphere-proxy
+
+[source]
+.application.yml
+----
+mybatis-plus:
+  global-config:
+    banner: false
+  type-aliases-package: io.github.jjyy.domain
+  configuration:
+    default-enum-type-handler: org.apache.ibatis.type.EnumOrdinalTypeHandler
+  mapper-locations: classpath*:/mappers/*.xml
+  type-handlers-package: io.github.jjyy.typehandler
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:3307/geekbang #sharding-proxy
+    username: jy
+    password: 123456
+----
+
+[source,java]
+.Week08Application.java
+----
+    @Bean
+    public CommandLineRunner runner(OrderService service) {
+        return args -> service.save(OrderGenerator.generateOrders(1).get(0));
+    }
+----
+
+=== 使用ShardingSphere-proxy时遇到的BUG
+
+* [pg] `comment` sql语句不支持.
+* [pg] `saveBatch` 方法执行时数据库连接会自动关闭.
+
+== 周六作业2 分布式事务
+
+=== 引入SS依赖
+
+[source,xml]
+.pom.xml
+----
+    <dependencies>
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-transaction-xa-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-jdbc-core</artifactId>
+        </dependency>
+    </dependencies>
+----
+
+=== 配置sharding规则
+
+[source,yaml]
+----
+dataSources:
+  geekbang_0: !!com.zaxxer.hikari.HikariDataSource
+    jdbcUrl: jdbc:postgresql://127.0.0.1:5432/geekbang_0
+    username: jy
+    password: 123456
+  geekbang_1: !!com.zaxxer.hikari.HikariDataSource
+    jdbcUrl: jdbc:postgresql://127.0.0.1:5432/geekbang_1
+    username: jy
+    password: 123456
+rules:
+  - !SHARDING
+    tables:
+      t_order:
+        actualDataNodes: geekbang_${0..1}.t_order_${0..15}
+        tableStrategy:
+          standard:
+            shardingColumn: id
+            shardingAlgorithmName: t_order_inline
+        keyGenerateStrategy:
+          column: id
+          keyGeneratorName: snowflake
+    bindingTables:
+      - t_order
+    defaultDatabaseStrategy:
+      standard:
+        shardingColumn: user_id
+        shardingAlgorithmName: database_inline
+    defaultTableStrategy:
+      none:
+
+    shardingAlgorithms:
+      database_inline:
+        type: INLINE
+        props:
+          algorithm-expression: geekbang_${user_id % 2}
+      t_order_inline:
+        type: INLINE
+        props:
+          algorithm-expression: t_order_${id % 16}
+
+    keyGenerators:
+      snowflake:
+        type: SNOWFLAKE
+        props:
+          worker-id: 123
+----
+
+=== 设置XA事务类型
+
+[source,java]
+.XaApplication.java
+----
+public class XaApplication {
+
+    public static void main(String[] args) throws Exception {
+        DataSource dataSource = YamlShardingSphereDataSourceFactory.createDataSource(new File(XaApplication.class.getClassLoader().getResource("sharding.yml").getFile()));
+        TransactionTypeHolder.set(TransactionType.XA);
+        Connection connection = dataSource.getConnection();
+        try {
+            connection.setAutoCommit(false);
+            PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO t_order (user_id, payment_no, payment_method, delivery_no, delivery_type, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            IntStream.rangeClosed(1, 10).forEach(i -> setValue(preparedStatement));
+            IntStream.rangeClosed(1, 10).forEach(i -> setValue(preparedStatement));
+            if (Math.random() > 0.5) {
+                throw new RuntimeException("ROLLBACK");
+            }
+            connection.commit();
+        } catch (Exception e) {
+            connection.rollback();
+        } finally {
+            if (connection != null) {
+                connection.close();
+            }
+            TransactionTypeHolder.clear();
+        }
+    }
+
+    @SneakyThrows
+    private static void setValue(PreparedStatement preparedStatement) {
+        preparedStatement.setObject(1, Math.random() > 0.5 ? 0 : 1);
+        preparedStatement.setObject(2, 111);
+        preparedStatement.setObject(3, 1);
+        preparedStatement.setObject(4, 111);
+        preparedStatement.setObject(5, 1);
+        preparedStatement.setObject(6, 1);
+        preparedStatement.setTimestamp(7, new Timestamp(Instant.now().getEpochSecond()));
+        preparedStatement.setTimestamp(8, new Timestamp(Instant.now().getEpochSecond()));
+        preparedStatement.executeUpdate();
+    }
+}
+----
+
+

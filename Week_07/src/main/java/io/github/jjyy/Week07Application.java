@@ -1,11 +1,7 @@
 package io.github.jjyy;
 
-import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.google.common.collect.Lists;
 import io.github.jjyy.domain.Order;
-import io.github.jjyy.domain.enumeration.DeliveryType;
-import io.github.jjyy.domain.enumeration.OrderStatus;
-import io.github.jjyy.domain.enumeration.PaymentMethod;
 import io.github.jjyy.mapper.OrderMapper;
 import io.github.jjyy.service.OrderService;
 import org.springframework.boot.ApplicationRunner;
@@ -15,8 +11,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.util.StopWatch;
 
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+
+import static io.github.jjyy.util.OrderGenerator.generateOrders;
 
 /**
  * @author jy
@@ -59,20 +55,4 @@ public class Week07Application {
         };
     }
 
-    private List<Order> generateOrders(int num) {
-        OrderStatus[] orderStatuses = OrderStatus.class.getEnumConstants();
-        PaymentMethod[] paymentMethods = PaymentMethod.class.getEnumConstants();
-        DeliveryType[] deliveryTypes = DeliveryType.class.getEnumConstants();
-        return IntStream
-            .rangeClosed(1, num)
-            .parallel()
-            .mapToObj(i -> new Order()
-                .setUserId(1L)
-                .setPaymentMethod(paymentMethods[i % paymentMethods.length])
-                .setDeliveryType(deliveryTypes[i % deliveryTypes.length])
-                .setPaymentNo(IdWorker.getId())
-                .setDeliveryNo(IdWorker.getId())
-                .setStatus(orderStatuses[i % orderStatuses.length]))
-            .collect(Collectors.toList());
-    }
 }

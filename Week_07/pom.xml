@@ -14,6 +14,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>io.github.jjyyjjyy</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>1.2.73</version>
@@ -21,7 +25,6 @@
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-boot-starter</artifactId>
-            <version>3.4.1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
