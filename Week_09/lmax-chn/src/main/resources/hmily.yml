@@ -1,0 +1,7 @@
+hmily:
+  server:
+    configMode: local
+    appName: chn
+  config:
+    appName: chn
+    repository: file

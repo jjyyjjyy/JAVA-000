@@ -1,0 +1,7 @@
+hmily:
+  server:
+    configMode: local
+    appName: cn
+  config:
+    appName: cn
+    repository: file

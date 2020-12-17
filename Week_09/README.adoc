@@ -1,0 +1,44 @@
+= Week_09
+:icons: font
+:source-highlighter: highlightjs
+:highlightjs-theme: idea
+:hardbreaks:
+:sectlinks:
+:sectnums:
+:stem:
+
+== 周四作业3 改造自定义RPC的程序
+
+详见 core 模块代码
+
+== 周日作业3 TCC外汇交易处理
+
+详见 `lmax-chn` + `lmax-cn` 模块代码
+
+`lmax-chn` A账户7人民币转账到 `lmax-cn` B账户1美元.
+
+[source]
+.数据库初始化脚本
+----
+create table account
+(
+    id         bigserial primary key,
+    user_id    bigint,
+    cny        bigint default 0,
+    dollar     bigint default 0,
+    created_at timestamp,
+    updated_at timestamp
+);
+
+
+create table account_transfer
+(
+    id         bigint primary key,
+    account_id bigint,
+    cny        bigint default 0,
+    dollar     bigint default 0,
+    status     int    default 0,
+    created_at timestamp,
+    updated_at timestamp
+);
+----

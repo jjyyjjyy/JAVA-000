@@ -18,6 +18,7 @@
         <module>Week_06</module>
         <module>Week_07</module>
         <module>Week_08</module>
+        <module>Week_09</module>
         <module>common</module>
     </modules>
 
@@ -35,6 +36,9 @@
         <netty.version>4.1.53.Final</netty.version>
         <mybatis-plus.version>3.4.1</mybatis-plus.version>
         <shardingsphere.version>5.0.0-alpha</shardingsphere.version>
+        <fastjson.version>1.2.75</fastjson.version>
+        <dubbo.version>2.7.8</dubbo.version>
+        <hmily.version>2.1.1</hmily.version>
 
     </properties>
 
@@ -46,6 +50,11 @@
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>fastjson</artifactId>
+                <version>${fastjson.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
@@ -76,6 +85,52 @@
                 <groupId>org.apache.shardingsphere</groupId>
                 <artifactId>shardingsphere-jdbc-core</artifactId>
                 <version>${shardingsphere.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.dubbo</groupId>
+                <artifactId>dubbo-dependencies-bom</artifactId>
+                <version>${dubbo.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.dubbo</groupId>
+                <artifactId>dubbo-spring-boot-starter</artifactId>
+                <version>${dubbo.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.dubbo</groupId>
+                <artifactId>dubbo</artifactId>
+                <version>${dubbo.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.springframework</groupId>
+                        <artifactId>spring</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>javax.servlet</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>log4j</groupId>
+                        <artifactId>log4j</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.dromara</groupId>
+                <artifactId>hmily-core</artifactId>
+                <version>${hmily.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.dromara</groupId>
+                <artifactId>hmily-repository-file</artifactId>
+                <version>${hmily.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.dromara</groupId>
+                <artifactId>hmily-spring-boot-starter-apache-dubbo</artifactId>
+                <version>${hmily.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.jjyyjjyy</groupId>
